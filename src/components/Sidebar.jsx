@@ -26,7 +26,9 @@ export default function Sidebar() {
     marginEnabled, setMarginEnabled,
     mode, setMode,
     items, addItem, removeItem,
-    calculate
+    calculate,
+    // NEW IMPORTS
+    shipmentQty, setShipmentQty
   } = useStore()
   
   const [itemForm, setItemForm] = useState({
@@ -284,6 +286,24 @@ export default function Sidebar() {
               </button>
             </div>
           </div>
+          
+          {/* --- NEW SECTION: Shipment Calculator --- */}
+          {mode === 'individual' && (
+             <div className="form-group" style={{ marginTop: '14px', padding: '10px', background: 'rgba(34,197,94,0.05)', borderRadius: '8px', border: '1px dashed var(--accent-1)' }}>
+                <label className="form-label" style={{ color: 'var(--accent-1)' }}>📦 Total Shipment Quantity</label>
+                <input 
+                    type="number" 
+                    className="form-input" 
+                    placeholder="e.g. 5000 total boxes"
+                    value={shipmentQty || ''}
+                    onChange={(e) => setShipmentQty(parseInt(e.target.value) || 0)}
+                />
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Calculate how many pallets you need.
+                </div>
+            </div>
+          )}
+          {/* -------------------------------------- */}
           
           {mode === 'mixed' && (
             <div className="form-group">

@@ -43,6 +43,37 @@ export default function ResultsPanel() {
             Volume: {results.containerVol.toLocaleString(undefined, { maximumFractionDigits: 0 })} {unit}³
           </div>
         </div>
+
+        {/* --- NEW: Pallet Calculator Result (Individual Mode) --- */}
+        {results.shipmentQty > 0 && results.mode === 'individual' && (
+          <div style={{ 
+            padding: '16px', 
+            background: 'linear-gradient(135deg, rgba(34,197,94,0.1), rgba(6,182,212,0.1))', 
+            border: '1px solid var(--accent-1)', 
+            borderRadius: '12px',
+            marginBottom: '16px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
+              LOGISTICS PLAN
+            </div>
+            {/* Since individual mode can have multiple different items, we usually just show the first calculated item's result or map them if multiple are calculated at once. 
+                Based on your logic, let's assume the user is calculating for one main item type or we show the first one. */}
+            {results.items.map((item, idx) => (
+               item.shipmentQty > 0 ? (
+                 <div key={idx}>
+                    <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#fff', lineHeight: '1' }}>
+                    {item.palletsNeeded} <span style={{ fontSize: '1rem', fontWeight: '500', color: 'var(--accent-1)' }}>Pallets</span>
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                    Required for {item.shipmentQty.toLocaleString()} units of "{item.name}"
+                    </div>
+                 </div>
+               ) : null
+            ))}
+          </div>
+        )}
+        {/* ------------------------------------------------------- */}
         
         {/* Mixed Mode Summary */}
         {results.mode === 'mixed' && (

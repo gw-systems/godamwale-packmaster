@@ -2,6 +2,23 @@ import { create } from 'zustand'
 
 const COLORS = ['#22c55e', '#06b6d4', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6', '#f97316']
 
+// 1. HELPER: Unit Conversion Logic
+const convert = (val, from, to) => {
+  if (from === to) return val
+  
+  // First, convert everything to CM
+  let inCM = val
+  if (from === 'in') inCM = val * 2.54
+  if (from === 'm') inCM = val * 100
+  
+  // Then convert CM to the target unit
+  if (to === 'cm') return parseFloat(inCM.toFixed(2))
+  if (to === 'in') return parseFloat((inCM / 2.54).toFixed(2))
+  if (to === 'm') return parseFloat((inCM / 100).toFixed(2))
+  
+  return val
+}
+
 export const useStore = create((set, get) => ({
   // Storage settings
   unit: 'cm',
@@ -11,8 +28,11 @@ export const useStore = create((set, get) => ({
   marginEnabled: false,
   
   // Packing mode
-  mode: 'individual', // 'individual' | 'mixed'
+  mode: 'individual', 
   priority: 'volume',
+  
+  // New: Shipment Calculator
+  shipmentQty: 0, 
   
   // Items
   items: [],
@@ -25,7 +45,41 @@ export const useStore = create((set, get) => ({
   showResults: true,
   
   // Actions
-  setUnit: (unit) => set({ unit }),
+  
+  // 2. UPDATED: Set Unit triggers conversion for everything
+  setUnit: (newUnit) => set((state) => {
+    const oldUnit = state.unit
+    if (oldUnit === newUnit) return {}
+
+    // Convert Storage
+    const newStorage = {
+      l: convert(state.storage.l, oldUnit, newUnit),
+      w: convert(state.storage.w, oldUnit, newUnit),
+      h: convert(state.storage.h, oldUnit, newUnit),
+    }
+
+    // Convert Safety Margin
+    const newMargin = convert(state.safetyMargin, oldUnit, newUnit)
+
+    // Convert All Items
+    const newItems = state.items.map(item => ({
+      ...item,
+      l: convert(item.l, oldUnit, newUnit),
+      w: convert(item.w, oldUnit, newUnit),
+      h: convert(item.h, oldUnit, newUnit),
+    }))
+
+    return {
+      unit: newUnit,
+      storage: newStorage,
+      safetyMargin: newMargin,
+      items: newItems,
+      // Clear results as dimensions have changed
+      results: null,
+      showResults: false
+    }
+  }),
+
   setStorageType: (storageType) => set({ storageType }),
   setStorage: (storage) => set({ storage }),
   setSafetyMargin: (safetyMargin) => set({ safetyMargin }),
@@ -33,6 +87,10 @@ export const useStore = create((set, get) => ({
   setMode: (mode) => set({ mode }),
   setPriority: (priority) => set({ priority }),
   setSelectedItemIndex: (index) => set({ selectedItemIndex: index }),
+  
+  // New Action
+  setShipmentQty: (qty) => set({ shipmentQty: qty }),
+
   toggleResults: () => set((state) => ({ showResults: !state.showResults })),
   
   addItem: (item) => set((state) => ({
@@ -64,6 +122,14 @@ export const useStore = create((set, get) => ({
       const results = state.items.map(item => {
         const best = findBestOrientation(item, container)
         const itemVol = item.l * item.w * item.h
+        
+        // 3. UPDATED: Pallet Calculation Logic
+        // "If I have 5000 boxes, how many pallets?"
+        const itemsPerPallet = best.total
+        const palletsNeeded = (state.shipmentQty > 0 && itemsPerPallet > 0)
+          ? Math.ceil(state.shipmentQty / itemsPerPallet)
+          : 0
+
         return {
           ...best,
           id: item.id,
@@ -72,7 +138,10 @@ export const useStore = create((set, get) => ({
           originalDims: { l: item.l, w: item.w, h: item.h },
           itemVol,
           packedVol: best.total * itemVol,
-          efficiency: ((best.total * itemVol / containerVol) * 100).toFixed(1)
+          efficiency: ((best.total * itemVol / containerVol) * 100).toFixed(1),
+          // Add these to result
+          palletsNeeded,
+          shipmentQty: state.shipmentQty
         }
       })
       
@@ -81,11 +150,14 @@ export const useStore = create((set, get) => ({
           mode: 'individual',
           container,
           containerVol,
+          // We pass the global shipment qty here too for easy access
+          shipmentQty: state.shipmentQty,
           items: results
-        }
+        },
+        showResults: true
       })
     } else {
-      // Mixed packing
+      // Mixed packing (Logic remains mostly the same)
       let sorted = [...state.items]
       if (state.priority === 'volume') {
         sorted.sort((a, b) => (b.l * b.w * b.h) - (a.l * a.w * a.h))
@@ -145,13 +217,15 @@ export const useStore = create((set, get) => ({
           totalVol,
           efficiency: ((totalVol / containerVol) * 100).toFixed(1),
           unusedH: remainingH
-        }
+        },
+        showResults: true
       })
     }
   }
 }))
 
-// Helper functions
+// --- Helper functions (Unchanged) ---
+
 function getOrientations(item) {
   const { l, w, h, rotation, lockH, lockL, lockW } = item
   
