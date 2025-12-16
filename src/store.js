@@ -2,66 +2,74 @@ import { create } from 'zustand'
 
 const COLORS = ['#22c55e', '#06b6d4', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6', '#f97316']
 
-// 1. HELPER: Unit Conversion Logic
+// 1. UPDATED HELPER: Handles cm, in, m, ft, mm
 const convert = (val, from, to) => {
   if (from === to) return val
   
-  // First, convert everything to CM
+  // Convert "From" to CM
   let inCM = val
   if (from === 'in') inCM = val * 2.54
   if (from === 'm') inCM = val * 100
+  if (from === 'ft') inCM = val * 30.48
+  if (from === 'mm') inCM = val / 10
   
-  // Then convert CM to the target unit
+  // Convert CM to "To"
   if (to === 'cm') return parseFloat(inCM.toFixed(2))
   if (to === 'in') return parseFloat((inCM / 2.54).toFixed(2))
   if (to === 'm') return parseFloat((inCM / 100).toFixed(2))
+  if (to === 'ft') return parseFloat((inCM / 30.48).toFixed(2))
+  if (to === 'mm') return parseFloat((inCM * 10).toFixed(2))
   
   return val
 }
 
 export const useStore = create((set, get) => ({
-  // Storage settings
-  unit: 'cm',
+  // --- STORAGE SETTINGS ---
+  storageUnit: 'cm', // Renamed from 'unit'
   storageType: 'pallet',
-  storage: { l: 120, w: 100, h: 150 },
+  storage: { l: 120, w: 80, h: 180 },
   safetyMargin: 0,
   marginEnabled: false,
   
-  // Packing mode
-  mode: 'individual', 
-  priority: 'volume',
-  
-  // New: Shipment Calculator
-  shipmentQty: 0, 
-  
-  // Items
+  // --- ITEM SETTINGS ---
+  itemUnit: 'cm', // NEW: Independent unit for boxes
   items: [],
   
-  // Results
+  // --- MODES ---
+  mode: 'individual', 
+  priority: 'volume',
+  shipmentQty: 0, 
+  
+  // --- STATE ---
   results: null,
-  
-  // UI state
+  showResults: false,
   selectedItemIndex: null,
-  showResults: true,
   
-  // Actions
+  // --- ACTIONS ---
   
-  // 2. UPDATED: Set Unit triggers conversion for everything
-  setUnit: (newUnit) => set((state) => {
-    const oldUnit = state.unit
+  // Set Storage Unit (Converts Container & Margin)
+  setStorageUnit: (newUnit) => set((state) => {
+    const oldUnit = state.storageUnit
     if (oldUnit === newUnit) return {}
 
-    // Convert Storage
-    const newStorage = {
-      l: convert(state.storage.l, oldUnit, newUnit),
-      w: convert(state.storage.w, oldUnit, newUnit),
-      h: convert(state.storage.h, oldUnit, newUnit),
+    return {
+      storageUnit: newUnit,
+      storage: {
+        l: convert(state.storage.l, oldUnit, newUnit),
+        w: convert(state.storage.w, oldUnit, newUnit),
+        h: convert(state.storage.h, oldUnit, newUnit),
+      },
+      safetyMargin: convert(state.safetyMargin, oldUnit, newUnit),
+      results: null, // Clear results to force recalc
+      showResults: false
     }
+  }),
 
-    // Convert Safety Margin
-    const newMargin = convert(state.safetyMargin, oldUnit, newUnit)
+  // NEW: Set Item Unit (Converts all existing items)
+  setItemUnit: (newUnit) => set((state) => {
+    const oldUnit = state.itemUnit
+    if (oldUnit === newUnit) return {}
 
-    // Convert All Items
     const newItems = state.items.map(item => ({
       ...item,
       l: convert(item.l, oldUnit, newUnit),
@@ -70,27 +78,22 @@ export const useStore = create((set, get) => ({
     }))
 
     return {
-      unit: newUnit,
-      storage: newStorage,
-      safetyMargin: newMargin,
+      itemUnit: newUnit,
       items: newItems,
-      // Clear results as dimensions have changed
       results: null,
       showResults: false
     }
   }),
 
-  setStorageType: (storageType) => set({ storageType }),
-  setStorage: (storage) => set({ storage }),
-  setSafetyMargin: (safetyMargin) => set({ safetyMargin }),
-  setMarginEnabled: (marginEnabled) => set({ marginEnabled }),
+  setStorageType: (storageType) => set({ storageType, results: null, showResults: false }),
+  setStorage: (storage) => set({ storage, results: null, showResults: false }),
+  setSafetyMargin: (safetyMargin) => set({ safetyMargin, results: null, showResults: false }),
+  setMarginEnabled: (marginEnabled) => set({ marginEnabled, results: null, showResults: false }),
+
   setMode: (mode) => set({ mode }),
   setPriority: (priority) => set({ priority }),
   setSelectedItemIndex: (index) => set({ selectedItemIndex: index }),
-  
-  // New Action
   setShipmentQty: (qty) => set({ shipmentQty: qty }),
-
   toggleResults: () => set((state) => ({ showResults: !state.showResults })),
   
   addItem: (item) => set((state) => ({
@@ -98,33 +101,50 @@ export const useStore = create((set, get) => ({
       ...item,
       id: Date.now(),
       color: COLORS[state.items.length % COLORS.length]
-    }]
+    }],
+    results: null,
+    showResults: false
   })),
   
   removeItem: (id) => set((state) => ({
-    items: state.items.filter(item => item.id !== id)
+    items: state.items.filter(item => item.id !== id),
+    results: null,
+    showResults: false
   })),
   
-  // Calculation
+  // --- UPDATED CALCULATION LOGIC ---
   calculate: () => {
     const state = get()
     if (state.items.length === 0) return
     
+    // 1. Normalize STORAGE to CM for calculation
     const margin = state.marginEnabled ? state.safetyMargin : 0
-    const container = {
-      l: state.storage.l - margin * 2,
-      w: state.storage.w - margin * 2,
-      h: state.storage.h - margin * 2
-    }
-    const containerVol = container.l * container.w * container.h
+    // We must convert margin to CM first if it's not already
+    const marginCM = convert(margin, state.storageUnit, 'cm')
     
+    const containerCM = {
+      l: convert(state.storage.l, state.storageUnit, 'cm') - marginCM * 2,
+      w: convert(state.storage.w, state.storageUnit, 'cm') - marginCM * 2,
+      h: convert(state.storage.h, state.storageUnit, 'cm') - marginCM * 2
+    }
+    
+    // Calculate Volume in CM³
+    const containerVolCM = containerCM.l * containerCM.w * containerCM.h
+
+    // 2. Prepare Items (Convert to CM for calc)
+    const itemsCM = state.items.map(item => ({
+      ...item,
+      l: convert(item.l, state.itemUnit, 'cm'),
+      w: convert(item.w, state.itemUnit, 'cm'),
+      h: convert(item.h, state.itemUnit, 'cm'),
+    }))
+
     if (state.mode === 'individual') {
-      const results = state.items.map(item => {
-        const best = findBestOrientation(item, container)
-        const itemVol = item.l * item.w * item.h
+      const results = itemsCM.map(item => {
+        // Use the CM dimensions for packing logic
+        const best = findBestOrientation(item, containerCM)
+        const itemVolCM = item.l * item.w * item.h
         
-        // 3. UPDATED: Pallet Calculation Logic
-        // "If I have 5000 boxes, how many pallets?"
         const itemsPerPallet = best.total
         const palletsNeeded = (state.shipmentQty > 0 && itemsPerPallet > 0)
           ? Math.ceil(state.shipmentQty / itemsPerPallet)
@@ -135,11 +155,13 @@ export const useStore = create((set, get) => ({
           id: item.id,
           name: item.name,
           color: item.color,
-          originalDims: { l: item.l, w: item.w, h: item.h },
-          itemVol,
-          packedVol: best.total * itemVol,
-          efficiency: ((best.total * itemVol / containerVol) * 100).toFixed(1),
-          // Add these to result
+          // Store display dims for the UI (original units)
+          displayDims: { 
+            l: state.items.find(i => i.id === item.id).l, 
+            w: state.items.find(i => i.id === item.id).w, 
+            h: state.items.find(i => i.id === item.id).h 
+          },
+          efficiency: ((best.total * itemVolCM / containerVolCM) * 100).toFixed(1),
           palletsNeeded,
           shipmentQty: state.shipmentQty
         }
@@ -148,22 +170,22 @@ export const useStore = create((set, get) => ({
       set({
         results: {
           mode: 'individual',
-          container,
-          containerVol,
-          // We pass the global shipment qty here too for easy access
+          container: state.storage, // Original Units
+          renderContainer: containerCM, // Normalized CM (For 3D)
+          containerVol: containerVolCM, // In CM³
           shipmentQty: state.shipmentQty,
           items: results
         },
         showResults: true
       })
     } else {
-      // Mixed packing (Logic remains mostly the same)
-      let sorted = [...state.items]
+      // Mixed Logic
+      let sorted = [...itemsCM]
       if (state.priority === 'volume') {
         sorted.sort((a, b) => (b.l * b.w * b.h) - (a.l * a.w * a.h))
       }
       
-      let remainingH = container.h
+      let remainingH = containerCM.h
       const packed = []
       let totalVol = 0
       
@@ -175,7 +197,7 @@ export const useStore = create((set, get) => ({
         
         for (const [l, w, h] of orientations) {
           if (h > remainingH) continue
-          const result = calcPacking(container.l, container.w, remainingH, l, w, h)
+          const result = calcPacking(containerCM.l, containerCM.w, remainingH, l, w, h)
           result.orient = { l, w, h }
           
           if (item.qty > 0) {
@@ -190,16 +212,16 @@ export const useStore = create((set, get) => ({
           const itemVol = item.l * item.w * item.h
           const heightUsed = best.layers * best.orient.h
           
+          const originalItem = state.items.find(i => i.id === item.id)
+
           packed.push({
             ...best,
             id: item.id,
             name: item.name,
             color: item.color,
-            originalDims: { l: item.l, w: item.w, h: item.h },
-            itemVol,
-            packedVol: best.total * itemVol,
-            startH: container.h - remainingH,
-            heightUsed
+            displayDims: { l: originalItem.l, w: originalItem.w, h: originalItem.h },
+            startH: containerCM.h - remainingH, // CM
+            heightUsed // CM
           })
           
           totalVol += best.total * itemVol
@@ -210,12 +232,12 @@ export const useStore = create((set, get) => ({
       set({
         results: {
           mode: 'mixed',
-          container,
-          containerVol,
+          container: state.storage,
+          renderContainer: containerCM, // CM
+          containerVol: containerVolCM,
           items: packed,
           totalItems: packed.reduce((sum, i) => sum + i.total, 0),
-          totalVol,
-          efficiency: ((totalVol / containerVol) * 100).toFixed(1),
+          efficiency: ((totalVol / containerVolCM) * 100).toFixed(1),
           unusedH: remainingH
         },
         showResults: true
@@ -224,13 +246,10 @@ export const useStore = create((set, get) => ({
   }
 }))
 
-// --- Helper functions (Unchanged) ---
-
+// --- Helpers (Unchanged) ---
 function getOrientations(item) {
   const { l, w, h, rotation, lockH, lockL, lockW } = item
-  
   if (lockH && lockL && lockW) return [[l, w, h]]
-  
   let orientations
   if (rotation === 'none') {
     orientations = [[l, w, h]]
@@ -239,7 +258,6 @@ function getOrientations(item) {
   } else {
     orientations = [[l,w,h], [l,h,w], [w,l,h], [w,h,l], [h,l,w], [h,w,l]]
   }
-  
   return orientations.filter(([ol, ow, oh]) => {
     if (lockH && oh !== h) return false
     if (lockL && ol !== l) return false
@@ -266,13 +284,10 @@ function calcPacking(cL, cW, cH, iL, iW, iH) {
 function findBestOrientation(item, container) {
   const orientations = getOrientations(item)
   let best = null
-  
   for (const [l, w, h] of orientations) {
     const result = calcPacking(container.l, container.w, container.h, l, w, h)
     result.orient = { l, w, h }
-    
     if (!best || result.total > best.total) best = result
   }
-  
   return best
 }

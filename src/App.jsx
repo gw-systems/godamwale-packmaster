@@ -12,7 +12,7 @@ function LoadingScreen() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#080b10',
+      background: '#f3f4f6',
       color: '#94a3b8'
     }}>
       <div style={{ textAlign: 'center' }}>
@@ -37,16 +37,7 @@ function Header() {
           <span>Space Optimization Calculator</span>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {results && (
-          <button 
-            className="btn btn-secondary btn-sm"
-            onClick={toggleResults}
-          >
-            {showResults ? 'Hide' : 'Show'} Results
-          </button>
-        )}
-      </div>
+      {/* Hide Results button moved to Scene3D component, next to View dropdown */}
     </div>
   )
 }

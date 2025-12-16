@@ -4,12 +4,13 @@ export default function ResultsPanel() {
   const results = useStore((state) => state.results)
   const showResults = useStore((state) => state.showResults)
   const toggleResults = useStore((state) => state.toggleResults)
-  const unit = useStore((state) => state.unit)
+  const storageUnit = useStore((state) => state.storageUnit)
+  const itemUnit = useStore((state) => state.itemUnit)
   
   if (!results) return null
   
   return (
-    <div className="results-panel" style={{ display: showResults ? 'block' : 'none' }}>
+    <div className="results-panel" style={{ display: showResults ? 'flex' : 'none' }}>
       <div className="results-header">
         <span>📊 Results</span>
         <button 
@@ -19,7 +20,9 @@ export default function ResultsPanel() {
             border: 'none', 
             color: 'var(--text-muted)',
             cursor: 'pointer',
-            fontSize: '18px'
+            fontSize: '16px',
+            padding: '0 4px',
+            lineHeight: '1'
           }}
         >
           ×
@@ -27,87 +30,55 @@ export default function ResultsPanel() {
       </div>
       <div className="results-body">
         {/* Container Info */}
-        <div style={{ 
-          padding: '12px', 
-          background: 'var(--bg-elevated)', 
-          borderRadius: '8px',
-          marginBottom: '12px'
-        }}>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-            CONTAINER
+        <div className="container-info">
+          <div className="container-label">CONTAINER</div>
+          <div className="container-dims">
+            {results.container.l} × {results.container.w} × {results.container.h} {storageUnit.toUpperCase()}
           </div>
-          <div style={{ fontFamily: 'JetBrains Mono', fontSize: '0.95rem' }}>
-            {results.container.l} × {results.container.w} × {results.container.h} {unit}
-          </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Volume: {results.containerVol.toLocaleString(undefined, { maximumFractionDigits: 0 })} {unit}³
+          <div className="container-volume">
+            Volume: {results.containerVol.toLocaleString(undefined, { maximumFractionDigits: 0 })} cm³
           </div>
         </div>
 
-        {/* --- NEW: Pallet Calculator Result (Individual Mode) --- */}
-        {results.shipmentQty > 0 && results.mode === 'individual' && (
-          <div style={{ 
-            padding: '16px', 
-            background: 'linear-gradient(135deg, rgba(34,197,94,0.1), rgba(6,182,212,0.1))', 
-            border: '1px solid var(--accent-1)', 
-            borderRadius: '12px',
-            marginBottom: '16px',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
-              LOGISTICS PLAN
-            </div>
-            {/* Since individual mode can have multiple different items, we usually just show the first calculated item's result or map them if multiple are calculated at once. 
-                Based on your logic, let's assume the user is calculating for one main item type or we show the first one. */}
-            {results.items.map((item, idx) => (
-               item.shipmentQty > 0 ? (
-                 <div key={idx}>
-                    <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#fff', lineHeight: '1' }}>
-                    {item.palletsNeeded} <span style={{ fontSize: '1rem', fontWeight: '500', color: 'var(--accent-1)' }}>Pallets</span>
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-                    Required for {item.shipmentQty.toLocaleString()} units of "{item.name}"
-                    </div>
-                 </div>
-               ) : null
+        {/* Logistics Plan for Individual Mode */}
+        {results.mode === 'individual' && results.items.some(item => item.palletsNeeded > 0) && (
+          <div className="logistics-plan">
+            <div className="logistics-header">📦 LOGISTICS PLAN</div>
+            {results.items.filter(item => item.palletsNeeded > 0).map((item, idx) => (
+              <div key={idx} style={{ marginBottom: idx < results.items.filter(i => i.palletsNeeded > 0).length - 1 ? '10px' : 0 }}>
+                <div>
+                  <span className="pallet-count">{item.palletsNeeded}</span>
+                  <span className="pallet-label">Pallets</span>
+                </div>
+                <div className="shipment-info">
+                  Required for {item.shipmentQty.toLocaleString()} units of "{item.name}"
+                </div>
+              </div>
             ))}
           </div>
         )}
-        {/* ------------------------------------------------------- */}
         
         {/* Mixed Mode Summary */}
         {results.mode === 'mixed' && (
-          <div style={{
-            padding: '14px',
-            background: 'linear-gradient(135deg, rgba(34,197,94,0.1), rgba(6,182,212,0.1))',
-            border: '1px solid var(--accent-1)',
-            borderRadius: '10px',
-            marginBottom: '12px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ fontWeight: 600, color: 'var(--accent-1)' }}>🧩 Mixed Packing</span>
-              <span style={{ fontFamily: 'JetBrains Mono', fontWeight: 700, color: 'var(--accent-1)' }}>
+          <div className="mixed-summary">
+            <div className="mixed-header">
+              <span style={{ fontWeight: 600, color: 'var(--gw-red)', fontSize: '0.8rem' }}>🧩 Mixed Packing</span>
+              <span style={{ fontFamily: 'JetBrains Mono', fontWeight: 700, color: 'var(--gw-red)', fontSize: '0.85rem' }}>
                 {results.efficiency}%
               </span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
+            <div className="mixed-stats">
               <div>
-                <div style={{ fontFamily: 'JetBrains Mono', fontSize: '1.3rem', fontWeight: 700 }}>
-                  {results.totalItems}
-                </div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>TOTAL</div>
+                <div className="mixed-stat-value">{results.totalItems}</div>
+                <div className="mixed-stat-label">TOTAL</div>
               </div>
               <div>
-                <div style={{ fontFamily: 'JetBrains Mono', fontSize: '1.3rem', fontWeight: 700 }}>
-                  {results.items.length}
-                </div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>TYPES</div>
+                <div className="mixed-stat-value">{results.items.length}</div>
+                <div className="mixed-stat-label">TYPES</div>
               </div>
               <div>
-                <div style={{ fontFamily: 'JetBrains Mono', fontSize: '1.3rem', fontWeight: 700 }}>
-                  {results.unusedH.toFixed(1)}
-                </div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>UNUSED H</div>
+                <div className="mixed-stat-value">{results.unusedH.toFixed(1)}</div>
+                <div className="mixed-stat-label">UNUSED H</div>
               </div>
             </div>
           </div>
@@ -115,14 +86,14 @@ export default function ResultsPanel() {
         
         {/* Individual Items */}
         {results.items.map((item, idx) => (
-          <div key={idx} className="result-item" style={{ borderLeft: `4px solid ${item.color}` }}>
+          <div key={idx} className="result-item" style={{ borderLeft: `3px solid ${item.color}` }}>
             <div className="result-item-header">
               <div>
                 <div className="result-item-name" style={{ color: item.color }}>
                   {item.name}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {item.originalDims.l}×{item.originalDims.w}×{item.originalDims.h} → {item.orient.l}×{item.orient.w}×{item.orient.h}
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  {item.displayDims.l}×{item.displayDims.w}×{item.displayDims.h} {itemUnit.toUpperCase()}
                 </div>
               </div>
               <div className="result-item-total">

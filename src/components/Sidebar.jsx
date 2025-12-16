@@ -19,7 +19,8 @@ const PRESETS = {
 
 export default function Sidebar() {
   const {
-    unit, setUnit,
+    storageUnit, setStorageUnit, 
+    itemUnit, setItemUnit,
     storageType, setStorageType,
     storage, setStorage,
     safetyMargin, setSafetyMargin,
@@ -27,7 +28,6 @@ export default function Sidebar() {
     mode, setMode,
     items, addItem, removeItem,
     calculate,
-    // NEW IMPORTS
     shipmentQty, setShipmentQty
   } = useStore()
   
@@ -43,6 +43,28 @@ export default function Sidebar() {
     qty: 0
   })
   
+  const units = ['cm', 'in', 'm', 'ft', 'mm'];
+
+  const handlePresetClick = (p) => {
+    let { l, w, h } = p;
+
+    if (storageUnit === 'in') {
+      l = l / 2.54; w = w / 2.54; h = h / 2.54;
+    } else if (storageUnit === 'm') {
+      l = l / 100; w = w / 100; h = h / 100;
+    } else if (storageUnit === 'ft') {
+      l = l / 30.48; w = w / 30.48; h = h / 30.48;
+    } else if (storageUnit === 'mm') {
+      l = l * 10; w = w * 10; h = h * 10;
+    }
+
+    setStorage({
+      l: parseFloat(l.toFixed(2)),
+      w: parseFloat(w.toFixed(2)),
+      h: parseFloat(h.toFixed(2))
+    });
+  }
+
   const handleAddItem = () => {
     if (itemForm.l <= 0 || itemForm.w <= 0 || itemForm.h <= 0) {
       alert('Please enter valid dimensions')
@@ -66,7 +88,7 @@ export default function Sidebar() {
   
   return (
     <div className="sidebar">
-      {/* Storage Material */}
+      {/* Storage Material Card */}
       <div className="card">
         <div className="card-header">
           <div className="card-header-left">
@@ -74,12 +96,12 @@ export default function Sidebar() {
             <span className="card-title">Storage Material</span>
           </div>
           <div className="chip-group">
-            {['cm', 'in', 'm'].map(u => (
+            {units.map(u => (
               <button
                 key={u}
-                className={`chip ${unit === u ? 'active' : ''}`}
-                onClick={() => setUnit(u)}
-                style={{ padding: '4px 10px', fontSize: '0.7rem' }}
+                className={`chip ${storageUnit === u ? 'active' : ''}`}
+                onClick={() => setStorageUnit(u)}
+                style={{ padding: '3px 7px', fontSize: '0.62rem' }}
               >
                 {u.toUpperCase()}
               </button>
@@ -105,18 +127,17 @@ export default function Sidebar() {
               <div
                 key={i}
                 className="preset-chip"
-                onClick={() => setStorage({ l: p.l, w: p.w, h: p.h })}
+                onClick={() => handlePresetClick(p)}
               >
                 <span className="name">{p.name}</span>
-                <br />
                 <span className="dims">{p.l}×{p.w}×{p.h}</span>
               </div>
             ))}
           </div>
           
-          <div className="input-row" style={{ marginTop: 14 }}>
+          <div className="input-row" style={{ marginTop: 10 }}>
             <div className="form-group">
-              <label className="form-label">Length</label>
+              <label className="form-label">Length ({storageUnit})</label>
               <input
                 type="number"
                 className="form-input"
@@ -125,7 +146,7 @@ export default function Sidebar() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Width</label>
+              <label className="form-label">Width ({storageUnit})</label>
               <input
                 type="number"
                 className="form-input"
@@ -134,7 +155,7 @@ export default function Sidebar() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Height</label>
+              <label className="form-label">Height ({storageUnit})</label>
               <input
                 type="number"
                 className="form-input"
@@ -144,9 +165,9 @@ export default function Sidebar() {
             </div>
           </div>
           
-          <div className="input-row-2" style={{ marginTop: 10 }}>
+          <div className="input-row-2" style={{ marginTop: 8 }}>
             <div className="form-group">
-              <label className="form-label">Safety Margin</label>
+              <label className="form-label">Safety Margin ({storageUnit})</label>
               <input
                 type="number"
                 className="form-input"
@@ -168,7 +189,7 @@ export default function Sidebar() {
         </div>
       </div>
       
-      {/* Packing Mode */}
+      {/* Packing Mode Card */}
       <div className="card">
         <div className="card-header">
           <div className="card-header-left">
@@ -198,7 +219,7 @@ export default function Sidebar() {
         </div>
       </div>
       
-      {/* Items */}
+      {/* Items Card */}
       <div className="card">
         <div className="card-header">
           <div className="card-header-left">
@@ -206,6 +227,23 @@ export default function Sidebar() {
             <span className="card-title">Items / Boxes</span>
           </div>
         </div>
+
+        {/* Item Unit Toggle Bar */}
+        <div style={{ padding: '0 12px 8px 12px', borderBottom: '1px solid var(--border)' }}>
+          <div className="chip-group" style={{ justifyContent: 'center' }}>
+            {units.map(u => (
+              <button
+                key={u}
+                className={`chip ${itemUnit === u ? 'active' : ''}`}
+                onClick={() => setItemUnit(u)}
+                style={{ padding: '3px 7px', fontSize: '0.62rem' }}
+              >
+                {u.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="card-body">
           <div className="form-group">
             <label className="form-label">Name</label>
@@ -220,7 +258,7 @@ export default function Sidebar() {
           
           <div className="input-row">
             <div className="form-group">
-              <label className="form-label">Length</label>
+              <label className="form-label">Length ({itemUnit})</label>
               <input
                 type="number"
                 className="form-input"
@@ -229,7 +267,7 @@ export default function Sidebar() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Width</label>
+              <label className="form-label">Width ({itemUnit})</label>
               <input
                 type="number"
                 className="form-input"
@@ -238,7 +276,7 @@ export default function Sidebar() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Height</label>
+              <label className="form-label">Height ({itemUnit})</label>
               <input
                 type="number"
                 className="form-input"
@@ -287,10 +325,16 @@ export default function Sidebar() {
             </div>
           </div>
           
-          {/* --- NEW SECTION: Shipment Calculator --- */}
+          {/* Shipment Calculator */}
           {mode === 'individual' && (
-             <div className="form-group" style={{ marginTop: '14px', padding: '10px', background: 'rgba(34,197,94,0.05)', borderRadius: '8px', border: '1px dashed var(--accent-1)' }}>
-                <label className="form-label" style={{ color: 'var(--accent-1)' }}>📦 Total Shipment Quantity</label>
+             <div className="form-group" style={{ 
+               marginTop: '10px', 
+               padding: '9px', 
+               background: 'rgba(211, 47, 47, 0.05)', 
+               borderRadius: '8px', 
+               border: '1px dashed var(--gw-red)' 
+             }}>
+                <label className="form-label" style={{ color: 'var(--gw-red)' }}>📦 Total Shipment Quantity</label>
                 <input 
                     type="number" 
                     className="form-input" 
@@ -298,12 +342,11 @@ export default function Sidebar() {
                     value={shipmentQty || ''}
                     onChange={(e) => setShipmentQty(parseInt(e.target.value) || 0)}
                 />
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '3px' }}>
                     Calculate how many pallets you need.
                 </div>
             </div>
           )}
-          {/* -------------------------------------- */}
           
           {mode === 'mixed' && (
             <div className="form-group">
@@ -317,7 +360,7 @@ export default function Sidebar() {
             </div>
           )}
           
-          <button className="btn btn-primary" onClick={handleAddItem} style={{ marginTop: 10 }}>
+          <button className="btn btn-primary" onClick={handleAddItem} style={{ marginTop: 8 }}>
             + Add Item
           </button>
           
@@ -325,7 +368,7 @@ export default function Sidebar() {
             {items.length === 0 ? (
               <div className="empty-state">
                 <div className="icon">📭</div>
-                <p>No items yet</p>
+                <p style={{ fontSize: '0.8rem', margin: '6px 0 0 0' }}>No items yet</p>
               </div>
             ) : (
               items.map(item => (
@@ -348,7 +391,7 @@ export default function Sidebar() {
                   <button
                     className="btn btn-secondary btn-sm"
                     onClick={() => removeItem(item.id)}
-                    style={{ marginTop: 8 }}
+                    style={{ marginTop: 6 }}
                   >
                     🗑️ Remove
                   </button>
@@ -360,7 +403,7 @@ export default function Sidebar() {
       </div>
       
       {/* Calculate Button */}
-      <button className="btn btn-primary btn-block" onClick={calculate} style={{ padding: 16 }}>
+      <button className="btn btn-primary btn-block" onClick={calculate} style={{ padding: 14, fontSize: '0.9rem' }}>
         🚀 Calculate Optimal Packing
       </button>
     </div>
