@@ -4,6 +4,16 @@ import { useStore } from '../store'
 import * as THREE from 'three'
 import { useMemo, useState } from 'react'
 
+// Unit conversion helper (for live preview before calculation)
+const convertToCM = (val, from) => {
+  if (from === 'cm') return val
+  if (from === 'in') return val * 2.54
+  if (from === 'm') return val * 100
+  if (from === 'ft') return val * 30.48
+  if (from === 'mm') return val / 10
+  return val
+}
+
 // Individual Box component
 function Box({ position, size, color }) {
   return (
@@ -23,49 +33,49 @@ function Box({ position, size, color }) {
   )
 }
 
-// Container wireframe
-function Container({ size, color = '#374151' }) {
+// Container wireframe - Red/Gray theme
+function Container({ size, color = '#b91c1c' }) {
   const [l, h, w] = size 
   
   return (
     <group>
-      {/* Base floor */}
+      {/* Base floor - light gray */}
       <mesh position={[l/2, 0.15, w/2]} receiveShadow>
         <boxGeometry args={[l, 0.3, w]} />
-        <meshStandardMaterial color="#e5e7eb" transparent opacity={0.8} />
+        <meshStandardMaterial color="#e5e7eb" transparent opacity={0.9} />
       </mesh>
       
-      {/* Container wireframe */}
+      {/* Container wireframe - red */}
       <group position={[l/2, h/2, w/2]}>
         <lineSegments>
           <edgesGeometry args={[new THREE.BoxGeometry(l, h, w)]} />
-          <lineBasicMaterial color={color} transparent opacity={0.8} />
+          <lineBasicMaterial color={color} transparent opacity={0.85} />
         </lineSegments>
       </group>
       
-      {/* Corner posts */}
+      {/* Corner posts - red */}
       {[[0, 0], [0, w], [l, 0], [l, w]].map(([x, z], i) => (
         <mesh key={i} position={[x, h/2, z]}>
-          <cylinderGeometry args={[0.4, 0.4, h, 8]} />
-          <meshStandardMaterial color={color} transparent opacity={0.2} />
+          <cylinderGeometry args={[0.5, 0.5, h, 8]} />
+          <meshStandardMaterial color={color} transparent opacity={0.3} />
         </mesh>
       ))}
       
-      {/* Back walls */}
+      {/* Back walls - light red tint */}
       <mesh position={[l/2, h/2, 0]}>
         <planeGeometry args={[l, h]} />
-        <meshStandardMaterial color="#9ca3af" transparent opacity={0.1} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#fecaca" transparent opacity={0.15} side={THREE.DoubleSide} />
       </mesh>
       <mesh position={[0, h/2, w/2]} rotation={[0, Math.PI/2, 0]}>
         <planeGeometry args={[w, h]} />
-        <meshStandardMaterial color="#9ca3af" transparent opacity={0.1} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#fecaca" transparent opacity={0.1} side={THREE.DoubleSide} />
       </mesh>
     </group>
   )
 }
 
 // Packed boxes component
-function PackedBoxes({ results, container, scaleFactor, filterIndex }) {
+function PackedBoxes({ results, scaleFactor, filterIndex }) {
   const boxes = useMemo(() => {
     if (!results || !results.items) return []
     
@@ -75,6 +85,7 @@ function PackedBoxes({ results, container, scaleFactor, filterIndex }) {
     results.items.forEach((item, itemIdx) => {
       if (filterIndex !== 'all' && Number(filterIndex) !== itemIdx) return
 
+      // orient is already in CM from the store calculation
       const { orient, nx, ny, nz, color, startH = 0 } = item
       
       const boxL = orient.l * scaleFactor
@@ -103,7 +114,7 @@ function PackedBoxes({ results, container, scaleFactor, filterIndex }) {
     })
     
     return boxList
-  }, [results, container, scaleFactor, filterIndex])
+  }, [results, scaleFactor, filterIndex])
   
   return (
     <group>
@@ -118,22 +129,27 @@ function PackedBoxes({ results, container, scaleFactor, filterIndex }) {
 function Scene({ filterIndex }) {
   const results = useStore((state) => state.results)
   const storage = useStore((state) => state.storage)
+  const storageUnit = useStore((state) => state.storageUnit)
   const marginEnabled = useStore((state) => state.marginEnabled)
   const safetyMargin = useStore((state) => state.safetyMargin)
   
+  // Get container dimensions - ALL IN CM for consistent 3D rendering
   let containerL, containerW, containerH
   
-  if (results && results.container) {
-    containerL = results.container.l
-    containerW = results.container.w
-    containerH = results.container.h
+  if (results && results.renderContainer) {
+    // AFTER CALCULATION: Use pre-calculated CM values
+    containerL = results.renderContainer.l
+    containerW = results.renderContainer.w
+    containerH = results.renderContainer.h
   } else {
-    const margin = marginEnabled ? safetyMargin : 0
-    containerL = storage.l - margin * 2
-    containerW = storage.w - margin * 2
-    containerH = storage.h - margin * 2
+    // BEFORE CALCULATION: Convert live inputs to CM
+    const marginCM = convertToCM(marginEnabled ? safetyMargin : 0, storageUnit)
+    containerL = convertToCM(storage.l, storageUnit) - marginCM * 2
+    containerW = convertToCM(storage.w, storageUnit) - marginCM * 2
+    containerH = convertToCM(storage.h, storageUnit) - marginCM * 2
   }
   
+  // Scale to fit nicely in view
   const maxDim = Math.max(containerL, containerW, containerH)
   const scaleFactor = 100 / maxDim
   
@@ -146,7 +162,7 @@ function Scene({ filterIndex }) {
   
   return (
     <>
-      {/* Lighting */}
+      {/* Lighting - bright for white theme */}
       <ambientLight intensity={0.7} />
       <directionalLight 
         position={[100, 150, 100]} 
@@ -163,7 +179,7 @@ function Scene({ filterIndex }) {
       <directionalLight position={[-50, 80, -50]} intensity={0.5} />
       <hemisphereLight args={['#ffffff', '#f3f4f6', 0.6]} />
       
-      {/* Floor Grid */}
+      {/* Floor Grid - subtle gray */}
       <Grid 
         position={[centerX, 0.01, centerZ]}
         args={[250, 250]}
@@ -178,20 +194,19 @@ function Scene({ filterIndex }) {
         followCamera={false}
       />
       
-      {/* Ground plane */}
+      {/* Ground plane - off-white */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[centerX, 0, centerZ]} receiveShadow>
         <planeGeometry args={[400, 400]} />
-        <meshStandardMaterial color="#f3f4f6" /> 
+        <meshStandardMaterial color="#f9fafb" /> 
       </mesh>
       
-      {/* Container */}
+      {/* Container - red wireframe */}
       <Container size={[scaledL, scaledH, scaledW]} />
       
       {/* Boxes */}
       {results && (
         <PackedBoxes 
           results={results}
-          container={{ l: containerL, w: containerW, h: containerH }}
           scaleFactor={scaleFactor}
           filterIndex={filterIndex}
         />
@@ -200,7 +215,7 @@ function Scene({ filterIndex }) {
       {/* Contact shadows */}
       <ContactShadows
         position={[centerX, 0.02, centerZ]}
-        opacity={0.25}
+        opacity={0.2}
         scale={200}
         blur={2}
         far={100}
@@ -210,7 +225,7 @@ function Scene({ filterIndex }) {
   )
 }
 
-// Main export with controls in top-right
+// Main export with controls
 export default function Scene3D() {
   const results = useStore((state) => state.results)
   const showResults = useStore((state) => state.showResults)
@@ -219,7 +234,7 @@ export default function Scene3D() {
   
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {/* Top-right controls: Hide Results button + View dropdown */}
+      {/* Top-right controls */}
       {results && results.items && results.items.length > 0 && (
         <div style={{
           position: 'absolute',
@@ -230,7 +245,7 @@ export default function Scene3D() {
           gap: '8px',
           alignItems: 'center'
         }}>
-          {/* Hide Results Button */}
+          {/* Hide/Show Results Button */}
           <button
             onClick={toggleResults}
             style={{
@@ -303,6 +318,7 @@ export default function Scene3D() {
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         dpr={[1, 2]}
       >
+        {/* White/light gray background */}
         <color attach="background" args={['#f3f4f6']} />
         <fog attach="fog" args={['#f3f4f6', 180, 450]} />
         
