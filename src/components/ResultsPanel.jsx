@@ -7,6 +7,18 @@ export default function ResultsPanel() {
   const storageUnit = useStore((state) => state.storageUnit)
   const itemUnit = useStore((state) => state.itemUnit)
 
+  const storageType = useStore((state) => state.storageType)
+
+  const getStorageLabel = (type, count) => {
+    const labels = {
+      pallet: 'Pallet',
+      drum: 'Drum',
+      container: 'Container'
+    }
+    const label = labels[type] || 'Unit'
+    return count === 1 ? label : `${label}s`
+  }
+
   if (!results) return null
 
   return (
@@ -31,7 +43,7 @@ export default function ResultsPanel() {
       <div className="results-body">
         {/* Container Info */}
         <div className="container-info">
-          <div className="container-label">CONTAINER</div>
+          <div className="container-label">{storageType.toUpperCase()}</div>
           <div className="container-dims">
             {results.container.l} × {results.container.w} × {results.container.h} {storageUnit.toUpperCase()}
           </div>
@@ -48,7 +60,7 @@ export default function ResultsPanel() {
               <div key={idx} style={{ marginBottom: idx < results.items.filter(i => i.palletsNeeded > 0).length - 1 ? '10px' : 0 }}>
                 <div>
                   <span className="pallet-count">{item.palletsNeeded}</span>
-                  <span className="pallet-label">Pallets</span>
+                  <span className="pallet-label">{getStorageLabel(storageType, item.palletsNeeded)}</span>
                 </div>
                 <div className="shipment-info">
                   Required for {item.shipmentQty.toLocaleString()} units of "{item.name}"

@@ -366,7 +366,7 @@ export default function Sidebar() {
                 onChange={(e) => setShipmentQty(parseInt(e.target.value) || 0)}
               />
               <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '3px' }}>
-                Calculate how many pallets you need.
+                Calculate how many {storageType === 'pallet' ? 'pallets' : storageType === 'drum' ? 'drums' : 'containers'} you need.
               </div>
             </div>
           )}
