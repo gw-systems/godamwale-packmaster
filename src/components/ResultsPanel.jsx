@@ -6,18 +6,18 @@ export default function ResultsPanel() {
   const toggleResults = useStore((state) => state.toggleResults)
   const storageUnit = useStore((state) => state.storageUnit)
   const itemUnit = useStore((state) => state.itemUnit)
-  
+
   if (!results) return null
-  
+
   return (
     <div className="results-panel" style={{ display: showResults ? 'flex' : 'none' }}>
       <div className="results-header">
         <span>📊 Results</span>
-        <button 
+        <button
           onClick={toggleResults}
-          style={{ 
-            background: 'none', 
-            border: 'none', 
+          style={{
+            background: 'none',
+            border: 'none',
             color: 'var(--text-muted)',
             cursor: 'pointer',
             fontSize: '16px',
@@ -57,7 +57,7 @@ export default function ResultsPanel() {
             ))}
           </div>
         )}
-        
+
         {/* Mixed Mode Summary */}
         {results.mode === 'mixed' && (
           <div className="mixed-summary">
@@ -83,7 +83,7 @@ export default function ResultsPanel() {
             </div>
           </div>
         )}
-        
+
         {/* Individual Items */}
         {results.items.map((item, idx) => (
           <div key={idx} className="result-item" style={{ borderLeft: `3px solid ${item.color}` }}>
@@ -102,14 +102,23 @@ export default function ResultsPanel() {
               </div>
             </div>
             <div className="result-stats">
-              <div className="result-stat">
-                <div className="value">{item.perLayer}</div>
-                <div className="label">Per Layer</div>
-              </div>
-              <div className="result-stat">
-                <div className="value">{item.layers}</div>
-                <div className="label">Layers</div>
-              </div>
+              {results.mode === 'individual' ? (
+                <>
+                  <div className="result-stat">
+                    <div className="value">{item.perLayer}</div>
+                    <div className="label">Per Layer</div>
+                  </div>
+                  <div className="result-stat">
+                    <div className="value">{item.layers}</div>
+                    <div className="label">Layers</div>
+                  </div>
+                </>
+              ) : (
+                <div className="result-stat">
+                  <div className="value">{item.total}</div>
+                  <div className="label">Total Units</div>
+                </div>
+              )}
               <div className="result-stat">
                 <div className="value">{item.efficiency || '-'}%</div>
                 <div className="label">Efficiency</div>

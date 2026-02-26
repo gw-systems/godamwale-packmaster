@@ -19,7 +19,7 @@ const PRESETS = {
 
 export default function Sidebar() {
   const {
-    storageUnit, setStorageUnit, 
+    storageUnit, setStorageUnit,
     itemUnit, setItemUnit,
     storageType, setStorageType,
     storage, setStorage,
@@ -28,9 +28,10 @@ export default function Sidebar() {
     mode, setMode,
     items, addItem, removeItem,
     calculate,
-    shipmentQty, setShipmentQty
+    shipmentQty, setShipmentQty,
+    exportCSV, exportJSON, saveConfig
   } = useStore()
-  
+
   const [itemForm, setItemForm] = useState({
     name: '',
     l: 30,
@@ -42,7 +43,7 @@ export default function Sidebar() {
     lockW: false,
     qty: 0
   })
-  
+
   const units = ['cm', 'in', 'm', 'ft', 'mm'];
 
   const handlePresetClick = (p) => {
@@ -65,6 +66,28 @@ export default function Sidebar() {
     });
   }
 
+  const handleLoadConfig = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = (e) => {
+      const file = e.target.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        try {
+          const config = JSON.parse(ev.target.result)
+          if (config.storageUnit) useStore.setState(config)
+          alert('Configuration loaded successfully!')
+        } catch (err) {
+          alert('Error loading configuration.')
+        }
+      }
+      reader.readAsText(file)
+    }
+    input.click()
+  }
+
   const handleAddItem = () => {
     if (itemForm.l <= 0 || itemForm.w <= 0 || itemForm.h <= 0) {
       alert('Please enter valid dimensions')
@@ -83,9 +106,9 @@ export default function Sidebar() {
     })
     setItemForm(prev => ({ ...prev, name: '' }))
   }
-  
+
   const presets = PRESETS[storageType] || []
-  
+
   return (
     <div className="sidebar">
       {/* Storage Material Card */}
@@ -121,7 +144,7 @@ export default function Sidebar() {
               <option value="container">Container / Custom</option>
             </select>
           </div>
-          
+
           <div className="presets-row">
             {presets.map((p, i) => (
               <div
@@ -134,7 +157,7 @@ export default function Sidebar() {
               </div>
             ))}
           </div>
-          
+
           <div className="input-row" style={{ marginTop: 10 }}>
             <div className="form-group">
               <label className="form-label">Length ({storageUnit})</label>
@@ -164,7 +187,7 @@ export default function Sidebar() {
               />
             </div>
           </div>
-          
+
           <div className="input-row-2" style={{ marginTop: 8 }}>
             <div className="form-group">
               <label className="form-label">Safety Margin ({storageUnit})</label>
@@ -188,7 +211,7 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
-      
+
       {/* Packing Mode Card */}
       <div className="card">
         <div className="card-header">
@@ -218,7 +241,7 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
-      
+
       {/* Items Card */}
       <div className="card">
         <div className="card-header">
@@ -255,7 +278,7 @@ export default function Sidebar() {
               onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
             />
           </div>
-          
+
           <div className="input-row">
             <div className="form-group">
               <label className="form-label">Length ({itemUnit})</label>
@@ -285,7 +308,7 @@ export default function Sidebar() {
               />
             </div>
           </div>
-          
+
           <div className="form-group">
             <label className="form-label">Rotation</label>
             <div className="chip-group">
@@ -300,7 +323,7 @@ export default function Sidebar() {
               ))}
             </div>
           </div>
-          
+
           <div className="form-group">
             <label className="form-label">Lock Dimensions</label>
             <div className="chip-group">
@@ -324,30 +347,30 @@ export default function Sidebar() {
               </button>
             </div>
           </div>
-          
+
           {/* Shipment Calculator */}
           {mode === 'individual' && (
-             <div className="form-group" style={{ 
-               marginTop: '10px', 
-               padding: '9px', 
-               background: 'rgba(211, 47, 47, 0.05)', 
-               borderRadius: '8px', 
-               border: '1px dashed var(--gw-red)' 
-             }}>
-                <label className="form-label" style={{ color: 'var(--gw-red)' }}>📦 Total Shipment Quantity</label>
-                <input 
-                    type="number" 
-                    className="form-input" 
-                    placeholder="e.g. 5000 total boxes"
-                    value={shipmentQty || ''}
-                    onChange={(e) => setShipmentQty(parseInt(e.target.value) || 0)}
-                />
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '3px' }}>
-                    Calculate how many pallets you need.
-                </div>
+            <div className="form-group" style={{
+              marginTop: '10px',
+              padding: '9px',
+              background: 'rgba(211, 47, 47, 0.05)',
+              borderRadius: '8px',
+              border: '1px dashed var(--gw-red)'
+            }}>
+              <label className="form-label" style={{ color: 'var(--gw-red)' }}>📦 Total Shipment Quantity</label>
+              <input
+                type="number"
+                className="form-input"
+                placeholder="e.g. 5000 total boxes"
+                value={shipmentQty || ''}
+                onChange={(e) => setShipmentQty(parseInt(e.target.value) || 0)}
+              />
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '3px' }}>
+                Calculate how many pallets you need.
+              </div>
             </div>
           )}
-          
+
           {mode === 'mixed' && (
             <div className="form-group">
               <label className="form-label">Quantity (0 = fill space)</label>
@@ -359,11 +382,11 @@ export default function Sidebar() {
               />
             </div>
           )}
-          
+
           <button className="btn btn-primary" onClick={handleAddItem} style={{ marginTop: 8 }}>
             + Add Item
           </button>
-          
+
           <div className="items-list">
             {items.length === 0 ? (
               <div className="empty-state">
@@ -401,11 +424,29 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
-      
+
       {/* Calculate Button */}
       <button className="btn btn-primary btn-block" onClick={calculate} style={{ padding: 14, fontSize: '0.9rem' }}>
         🚀 Calculate Optimal Packing
       </button>
+
+      {/* Export & Utility Section */}
+      <div className="card" style={{ marginTop: 14 }}>
+        <div className="card-header">
+          <div className="card-header-left">
+            <div className="card-icon">💾</div>
+            <span className="card-title">Export & Config</span>
+          </div>
+        </div>
+        <div className="card-body">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button className="btn btn-secondary btn-sm" onClick={exportCSV}>📄 CSV</button>
+            <button className="btn btn-secondary btn-sm" onClick={exportJSON}>📋 JSON</button>
+            <button className="btn btn-secondary btn-sm" onClick={saveConfig}>💾 Save</button>
+            <button className="btn btn-secondary btn-sm" onClick={handleLoadConfig}>📂 Load</button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
